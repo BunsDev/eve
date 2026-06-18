@@ -97,6 +97,12 @@ describe("nextKey", () => {
     expect(nextKey(buffer.slice(token.consumed))).toEqual({ key: { type: "enter" }, consumed: 1 });
   });
 
+  it("decodes Shift+Enter as a newline while a bare Enter still submits", () => {
+    expect(nextKey("\x1b[27;2;13~")).toEqual({ key: { type: "newline" }, consumed: 10 });
+    expect(nextKey("\x1b[13;2u")).toEqual({ key: { type: "newline" }, consumed: 7 });
+    expect(nextKey("\r")).toEqual({ key: { type: "enter" }, consumed: 1 });
+  });
+
   it("stops a printable run at a control byte", () => {
     expect(nextKey("ab\rcd")).toEqual({ key: { type: "character", value: "ab" }, consumed: 2 });
   });

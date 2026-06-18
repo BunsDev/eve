@@ -99,6 +99,8 @@ export function applyLineEditorKey(state: LineState, key: TerminalKey): LineStat
     case "character":
     case "paste":
       return insert(state, key.value);
+    case "newline":
+      return insert(state, "\n");
     case "backspace":
       return backspace(state);
     case "delete":

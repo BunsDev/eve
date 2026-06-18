@@ -33,6 +33,13 @@ describe("line editing", () => {
     });
   });
 
+  it("inserts a newline (Shift+Enter) at the caret", () => {
+    expect(applyLineEditorKey(lineOf("a"), { type: "newline" })).toEqual({
+      text: "a\n",
+      cursor: 2,
+    });
+  });
+
   it("backspaces the character before the caret", () => {
     const line = backspace({ text: "abc", cursor: 2 });
     expect(line).toEqual({ text: "ac", cursor: 1 });

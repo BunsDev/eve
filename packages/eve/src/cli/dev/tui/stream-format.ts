@@ -9,6 +9,7 @@ import type { AssistantResponseStatsMode } from "./types.js";
 export type TerminalKey =
   | { type: "character"; value: string }
   | { type: "paste"; value: string }
+  | { type: "newline" }
   | { type: "backspace" }
   | { type: "delete" }
   | { type: "enter" }
@@ -167,6 +168,11 @@ export function parseKey(chunk: Buffer): TerminalKey {
     case "\r":
     case "\n":
       return { type: "enter" };
+    // Shift+Enter inserts a newline instead of submitting. Terminals report it
+    // as xterm modifyOtherKeys (`CSI 27 ; 2 ; 13 ~`) or the kitty/CSI-u form.
+    case "\x1b[27;2;13~":
+    case "\x1b[13;2u":
+      return { type: "newline" };
     case "\u007f":
     case "\b":
       return { type: "backspace" };

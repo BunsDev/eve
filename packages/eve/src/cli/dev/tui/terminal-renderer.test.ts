@@ -291,6 +291,19 @@ describe("TerminalRenderer (inline scrollback)", () => {
     renderer.shutdown();
   });
 
+  it("inserts a newline on Shift+Enter and submits the whole multi-line buffer", async () => {
+    const { input, renderer } = makeRenderer();
+
+    const prompt = renderer.readPrompt();
+    input.type("line one");
+    input.send("\x1b[27;2;13~"); // Shift+Enter (xterm modifyOtherKeys)
+    input.type("line two");
+    input.enter();
+
+    expect(await prompt).toBe("line one\nline two");
+    renderer.shutdown();
+  });
+
   it("moves the caret into the line above on ↑, then edits it", async () => {
     const { input, renderer } = makeRenderer();
 
