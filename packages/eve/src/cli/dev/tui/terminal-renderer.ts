@@ -2765,8 +2765,10 @@ function promptInputRows({
 
   const layout = layoutPromptInput({ text, cursor });
   const promptGlyph = c.cyan(theme.glyph.prompt);
-  // Columns left for row text after the two-column gutter (glyph + space).
-  const budget = Math.max(1, width - 2);
+  // Columns left for the caret row's text: the two-column gutter (glyph +
+  // space) plus one reserved column so the block caret stays on-screen when it
+  // rides a trailing space at end-of-line, even on a line that fills the width.
+  const budget = Math.max(1, width - 3);
   const out: string[] = [];
   for (let r = 0; r < layout.rows.length; r += 1) {
     const row = layout.rows[r]!;

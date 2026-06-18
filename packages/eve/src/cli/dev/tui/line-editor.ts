@@ -71,14 +71,27 @@ export function moveEnd(state: LineState): LineState {
 
 /** Deletes from the caret to the end of the line (Ctrl+K). */
 export function killToEnd(state: LineState): LineState {
-  if (state.cursor >= state.text.length) return state;
-  return { text: state.text.slice(0, state.cursor), cursor: state.cursor };
+  // Bound to the current logical line: kill up to the next newline, leaving it
+  // and the lines below intact.
+  const newline = state.text.indexOf("\n", state.cursor);
+  const lineEnd = newline === -1 ? state.text.length : newline;
+  if (state.cursor >= lineEnd) return state;
+  return {
+    text: state.text.slice(0, state.cursor) + state.text.slice(lineEnd),
+    cursor: state.cursor,
+  };
 }
 
 /** Deletes from the start of the line to the caret (Ctrl+U). */
 export function killToStart(state: LineState): LineState {
-  if (state.cursor === 0) return state;
-  return { text: state.text.slice(state.cursor), cursor: 0 };
+  // Bound to the current logical line: kill back to the start of this line, not
+  // into the line above.
+  const lineStart = state.text.lastIndexOf("\n", state.cursor - 1) + 1;
+  if (state.cursor <= lineStart) return state;
+  return {
+    text: state.text.slice(0, lineStart) + state.text.slice(state.cursor),
+    cursor: lineStart,
+  };
 }
 
 /** Deletes the whitespace-delimited word before the caret (Ctrl+W). */

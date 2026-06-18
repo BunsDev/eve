@@ -72,6 +72,20 @@ describe("line editing", () => {
     expect(killToStart({ text: "hello world", cursor: 6 })).toEqual({ text: "world", cursor: 0 });
   });
 
+  it("bounds kill-to-end to the current line, leaving the newline and lines below", () => {
+    // Ctrl+K on the first line keeps "\ntwo".
+    expect(killToEnd({ text: "one\ntwo", cursor: 0 })).toEqual({ text: "\ntwo", cursor: 0 });
+    // At the end of a line (on the newline) it is a no-op, not a line join.
+    expect(killToEnd({ text: "one\ntwo", cursor: 3 })).toEqual({ text: "one\ntwo", cursor: 3 });
+  });
+
+  it("bounds kill-to-start to the current line, leaving the lines above", () => {
+    // Ctrl+U on the second line keeps "one\n".
+    expect(killToStart({ text: "one\ntwo", cursor: 7 })).toEqual({ text: "one\n", cursor: 4 });
+    // At the start of a line it is a no-op.
+    expect(killToStart({ text: "one\ntwo", cursor: 4 })).toEqual({ text: "one\ntwo", cursor: 4 });
+  });
+
   it("deletes the previous word", () => {
     expect(deleteWord({ text: "one two three", cursor: 13 })).toEqual({
       text: "one two ",
