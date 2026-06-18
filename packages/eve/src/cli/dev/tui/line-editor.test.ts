@@ -26,18 +26,22 @@ describe("line editing", () => {
     expect(line).toEqual({ text: "hello", cursor: 4 });
   });
 
-  it("inserts a paste, newlines and all, at the caret", () => {
-    expect(applyLineEditorKey(lineOf(""), { type: "paste", value: "one\ntwo" })).toEqual({
+  it("keeps a multi-line paste intact when multiline, flattens its newlines otherwise", () => {
+    const paste = { type: "paste", value: "one\ntwo" } as const;
+    expect(applyLineEditorKey(lineOf(""), paste, { multiline: true })).toEqual({
       text: "one\ntwo",
       cursor: 7,
     });
+    // A single-line input flattens newlines to spaces so a paste can't add rows.
+    expect(applyLineEditorKey(lineOf(""), paste)).toEqual({ text: "one two", cursor: 7 });
   });
 
-  it("inserts a newline (Shift+Enter) at the caret", () => {
-    expect(applyLineEditorKey(lineOf("a"), { type: "newline" })).toEqual({
+  it("inserts a newline (Shift+Enter) only when multiline; ignores it otherwise", () => {
+    expect(applyLineEditorKey(lineOf("a"), { type: "newline" }, { multiline: true })).toEqual({
       text: "a\n",
       cursor: 2,
     });
+    expect(applyLineEditorKey(lineOf("a"), { type: "newline" })).toBeUndefined();
   });
 
   it("backspaces the character before the caret", () => {

@@ -454,7 +454,9 @@ export class TerminalRenderer implements AgentTUIRenderer {
       };
 
       this.#consumeKey = (key) => {
-        const edited = applyLineEditorKey(editor, key);
+        // The prompt is the one multi-line input: it keeps pasted newlines and
+        // honors Shift+Enter. The setup-panel inputs stay single-line (default).
+        const edited = applyLineEditorKey(editor, key, { multiline: true });
         if (edited !== undefined) {
           apply(edited);
           return;

@@ -103,17 +103,35 @@ export function deleteWord(state: LineState): LineState {
   return { text: state.text.slice(0, start) + state.text.slice(state.cursor), cursor: start };
 }
 
+/** Options for {@link applyLineEditorKey}. */
+export interface LineEditorOptions {
+  /**
+   * Whether the buffer may hold more than one line. Defaults to `false`. On a
+   * single-line input a pasted newline flattens to a space and Shift+Enter is
+   * ignored, so a multi-line paste can't corrupt a one-row field; the prompt
+   * opts in with `true` to keep real newlines.
+   */
+  readonly multiline?: boolean;
+}
+
 /**
- * Applies a key owned by the single-line editor. Returns `undefined` when the
- * key belongs to the surrounding controller (submit, cancel, history, menus).
+ * Applies a key owned by the line editor. Returns `undefined` when the key
+ * belongs to the surrounding controller (submit, cancel, history, menus), which
+ * on a single-line input includes Shift+Enter.
  */
-export function applyLineEditorKey(state: LineState, key: TerminalKey): LineState | undefined {
+export function applyLineEditorKey(
+  state: LineState,
+  key: TerminalKey,
+  options?: LineEditorOptions,
+): LineState | undefined {
+  const multiline = options?.multiline ?? false;
   switch (key.type) {
     case "character":
-    case "paste":
       return insert(state, key.value);
+    case "paste":
+      return insert(state, multiline ? key.value : key.value.replaceAll("\n", " "));
     case "newline":
-      return insert(state, "\n");
+      return multiline ? insert(state, "\n") : undefined;
     case "backspace":
       return backspace(state);
     case "delete":
