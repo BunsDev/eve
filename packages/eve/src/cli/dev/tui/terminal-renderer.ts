@@ -1687,7 +1687,7 @@ export class TerminalRenderer implements AgentTUIRenderer {
       // multi-line paste intact instead of each newline submitting the prompt.
       // Routed through the live region's original `write` so the foreign-output
       // capture installed just above can't swallow the control sequence.
-      this.#live.enableBracketedPaste();
+      this.#live.emitBracketedPaste(true);
     }
 
     this.#onResize = () => this.#paint();
@@ -1722,7 +1722,7 @@ export class TerminalRenderer implements AgentTUIRenderer {
 
     if (this.#input.isTTY) {
       // Disable bracketed paste, restoring the terminal to how we found it.
-      this.#live.disableBracketedPaste();
+      this.#live.emitBracketedPaste(false);
       this.#input.setRawMode?.(false);
       this.#input.pause();
     }
@@ -2380,52 +2380,18 @@ export class TerminalRenderer implements AgentTUIRenderer {
       // A fully typed known command paints blue, confirming it will dispatch
       // as a command instead of being sent to the agent as a message.
       const isCommand = isPromptControlCommand(this.#inputText);
-      const style = (segment: string): string =>
-        isCommand && segment.length > 0 ? c.blue(segment) : segment;
       const ghost = inlineHint ? c.dim(` ${inlineHint}`) : "";
-
-      // The buffer can carry newlines (paste, or Shift+Enter later); lay it out
-      // across visual rows so the prompt grows downward instead of collapsing
-      // onto one line. Reserve three columns: the gutter glyph, its trailing
-      // space, and room for the caret at the end of a row.
-      const contentWidth = Math.max(1, width - 3);
-      const layout = layoutPromptInput(
-        { text: this.#inputText, cursor: this.#inputCursor },
-        contentWidth,
+      rows.push(
+        ...promptInputRows({
+          text: this.#inputText,
+          cursor: this.#inputCursor,
+          width,
+          theme: this.#theme,
+          caretVisible: this.#caretVisible,
+          isCommand,
+          ghost,
+        }),
       );
-
-      // Cap the input viewport and scroll it to keep the caret visible, so a
-      // tall paste can't push the rest of the TUI off-screen.
-      const total = layout.rows.length;
-      const visibleCount = Math.min(PROMPT_MAX_ROWS, total);
-      let top = 0;
-      if (layout.caretRow >= visibleCount) top = layout.caretRow - visibleCount + 1;
-      top = Math.min(top, total - visibleCount);
-
-      const promptGlyph = c.cyan(this.#theme.glyph.prompt);
-      const ellipsis = c.dim(this.#theme.glyph.ellipsis);
-      for (let r = top; r < top + visibleCount; r += 1) {
-        const row = layout.rows[r]!;
-        // Gutter: the prompt glyph on the true first row, a scroll marker when
-        // rows are hidden above or below the viewport, otherwise blank for
-        // alignment under the prompt.
-        let gutter = " ";
-        if (r === top && top > 0) gutter = ellipsis;
-        else if (r === top + visibleCount - 1 && top + visibleCount < total) gutter = ellipsis;
-        else if (r === 0) gutter = promptGlyph;
-
-        let body: string;
-        if (r === layout.caretRow) {
-          const caret = this.#caretVisible ? c.cyan(this.#theme.glyph.caret) : " ";
-          body = `${style(row.text.slice(0, layout.caretCol))}${caret}${style(row.text.slice(layout.caretCol))}`;
-        } else {
-          body = style(row.text);
-        }
-        // The argument hint trails the caret only on a single-line command draft.
-        if (ghost.length > 0 && total === 1 && r === layout.caretRow) body += ghost;
-        rows.push(clip(`${gutter} ${body}`, width));
-      }
-      rows.push("");
       this.#pushStatusLine(rows, width);
       return rows;
     }
@@ -2761,6 +2727,76 @@ async function* iterateTUIStream(
 
 function clip(line: string, width: number): string {
   return visibleLength(line) > width ? sliceVisible(line, width) : line;
+}
+
+interface PromptInputRowsInput {
+  readonly text: string;
+  readonly cursor: number;
+  readonly width: number;
+  readonly theme: Theme;
+  readonly caretVisible: boolean;
+  /** A fully typed known command paints blue, confirming it will dispatch as a command. */
+  readonly isCommand: boolean;
+  /** Pre-styled argument hint trailing a single-line command draft, or "" for none. */
+  readonly ghost: string;
+}
+
+/**
+ * Renders the prompt buffer as terminal rows, followed by a blank row that keeps
+ * the persistent status visually separate. The buffer can carry newlines (paste,
+ * or Shift+Enter later), so it lays out across visual rows — growing downward
+ * instead of collapsing onto one line — and caps the viewport at
+ * {@link PROMPT_MAX_ROWS}, scrolling to keep the caret visible so a tall paste
+ * can't push the rest of the TUI off-screen.
+ */
+function promptInputRows({
+  text,
+  cursor,
+  width,
+  theme,
+  caretVisible,
+  isCommand,
+  ghost,
+}: PromptInputRowsInput): string[] {
+  const c = theme.colors;
+  const style = (segment: string): string =>
+    isCommand && segment.length > 0 ? c.blue(segment) : segment;
+
+  // Reserve three columns: the gutter glyph, its trailing space, and room for
+  // the caret at the end of a row.
+  const layout = layoutPromptInput({ text, cursor }, Math.max(1, width - 3));
+  const total = layout.rows.length;
+  const visibleCount = Math.min(PROMPT_MAX_ROWS, total);
+  let top = 0;
+  if (layout.caretRow >= visibleCount) top = layout.caretRow - visibleCount + 1;
+  top = Math.min(top, total - visibleCount);
+
+  const promptGlyph = c.cyan(theme.glyph.prompt);
+  const ellipsis = c.dim(theme.glyph.ellipsis);
+  const out: string[] = [];
+  for (let r = top; r < top + visibleCount; r += 1) {
+    const row = layout.rows[r]!;
+    // Gutter: the prompt glyph on the true first row, a scroll marker when rows
+    // are hidden above or below the viewport, otherwise blank for alignment
+    // under the prompt.
+    let gutter = " ";
+    if (r === top && top > 0) gutter = ellipsis;
+    else if (r === top + visibleCount - 1 && top + visibleCount < total) gutter = ellipsis;
+    else if (r === 0) gutter = promptGlyph;
+
+    let body: string;
+    if (r === layout.caretRow) {
+      const caret = caretVisible ? c.cyan(theme.glyph.caret) : " ";
+      body = `${style(row.text.slice(0, layout.caretCol))}${caret}${style(row.text.slice(layout.caretCol))}`;
+    } else {
+      body = style(row.text);
+    }
+    // The argument hint trails the caret only on a single-line command draft.
+    if (ghost.length > 0 && total === 1 && r === layout.caretRow) body += ghost;
+    out.push(clip(`${gutter} ${body}`, width));
+  }
+  out.push("");
+  return out;
 }
 
 /** Kind + title of the previously rendered block, for gap / run decisions. */

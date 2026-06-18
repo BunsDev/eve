@@ -41,9 +41,9 @@ describe("LiveRegion", () => {
 
   it("toggles bracketed paste mode through the bound write", () => {
     const { screen, live } = setup();
-    live.enableBracketedPaste();
+    live.emitBracketedPaste(true);
     expect(screen.rawOutput()).toContain("\x1b[?2004h");
-    live.disableBracketedPaste();
+    live.emitBracketedPaste(false);
     expect(screen.rawOutput()).toContain("\x1b[?2004l");
   });
 });

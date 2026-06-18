@@ -21,6 +21,12 @@ describe("sanitizePastedText", () => {
   it("normalizes CRLF and lone CR to LF", () => {
     expect(sanitizePastedText("a\r\nb\rc")).toBe("a\nb\nc");
   });
+
+  it("drops C1 control bytes that terminals read as control introducers", () => {
+    // 0x9b is single-byte CSI, 0x9d is OSC: leaving them in would let a paste
+    // smuggle in an escape sequence.
+    expect(sanitizePastedText("abc")).toBe("abc");
+  });
 });
 
 describe("formatCompactTokenCount", () => {

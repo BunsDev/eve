@@ -198,13 +198,14 @@ export function layoutPromptInput(state: LineState, width: number): PromptLayout
   const lines = state.text.split("\n");
   let lineStart = 0;
   for (const line of lines) {
-    let consumed = 0;
     // An empty logical line still occupies one row; a non-empty one wraps into
     // ceil(length / cols) rows.
-    do {
+    const chunkCount = Math.max(1, Math.ceil(line.length / cols));
+    for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
+      const consumed = chunkIndex * cols;
       const chunk = line.slice(consumed, consumed + cols);
       const chunkStart = lineStart + consumed;
-      const isLastChunk = consumed + cols >= line.length;
+      const isLastChunk = chunkIndex === chunkCount - 1;
       // The caret belongs to this chunk when it sits inside it; the chunk that
       // ends a logical line also owns the caret at its trailing edge.
       if (
@@ -216,8 +217,7 @@ export function layoutPromptInput(state: LineState, width: number): PromptLayout
         caretCol = state.cursor - chunkStart;
       }
       rows.push({ text: chunk, start: chunkStart });
-      consumed += cols;
-    } while (consumed < line.length);
+    }
     lineStart += line.length + 1; // + 1 for the "\n" that split removed
   }
 

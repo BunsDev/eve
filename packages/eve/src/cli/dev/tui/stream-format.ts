@@ -50,15 +50,25 @@ const PASTE_END = "\x1B[201~";
 /**
  * Sanitizes bracketed-paste content for the prompt: preserves newlines and tabs
  * (the whole point of multi-line paste), normalizes CR/CRLF to LF, and drops
- * other C0 controls, DEL, and any embedded ESC so a paste cannot smuggle escape
- * sequences into the line.
+ * every other control byte so a paste cannot smuggle an escape sequence into the
+ * line. "Control" means the C0 range (below 0x20, which includes ESC), DEL, and
+ * the C1 range (0x80–0x9f) — the latter matters because terminals read bytes
+ * like 0x9b (CSI) or 0x9d (OSC) as single-byte control introducers.
+ *
+ * Scope is escape injection, not display spoofing: bidi overrides and
+ * zero-width characters pass through, since they misrepresent text rather than
+ * inject a control sequence.
  */
 export function sanitizePastedText(text: string): string {
   let printable = "";
   for (const character of text.replace(/\r\n?/gu, "\n")) {
-    if (character === "\n" || character === "\t" || (character >= " " && character !== "\x7f")) {
+    if (character === "\n" || character === "\t") {
       printable += character;
+      continue;
     }
+    const code = character.codePointAt(0)!;
+    if (code < 0x20 || code === 0x7f || (code >= 0x80 && code <= 0x9f)) continue;
+    printable += character;
   }
   return printable;
 }

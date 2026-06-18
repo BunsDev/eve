@@ -62,18 +62,14 @@ export class LiveRegion {
   }
 
   /**
-   * Enables the terminal's bracketed-paste mode (DEC private mode 2004) through
+   * Toggles the terminal's bracketed-paste mode (DEC private mode 2004) through
    * the bound original `write`, so the sequence reaches the terminal instead of
    * being swallowed by the renderer's foreign-output capture (which monkeypatches
-   * `process.stdout.write`).
+   * `process.stdout.write`). `true` turns the mode on; `false` restores the
+   * terminal default.
    */
-  enableBracketedPaste(): void {
-    this.#write(BRACKETED_PASTE_ON);
-  }
-
-  /** Disables bracketed-paste mode, restoring the terminal default. */
-  disableBracketedPaste(): void {
-    this.#write(BRACKETED_PASTE_OFF);
+  emitBracketedPaste(enabled: boolean): void {
+    this.#write(enabled ? BRACKETED_PASTE_ON : BRACKETED_PASTE_OFF);
   }
 
   /** Writes a newline through the bound (original) write. */
