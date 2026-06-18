@@ -64,7 +64,7 @@ The prompt input behaves like a shell line editor.
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `Enter`                                        | Send the message.                                                                                                         |
 | `Shift+Enter`                                  | Insert a newline without sending (needs a terminal that reports modified keys).                                           |
-| `Ctrl+C`                                       | Interrupt a running turn, or quit at the prompt.                                                                          |
+| `Ctrl+C`                                       | Interrupt a running turn. At the prompt, clear the input; on an already-empty prompt, quit.                               |
 | `↑` / `↓`                                      | Move between lines of a multi-line message; at the top or bottom line, cycle through messages you have sent this session. |
 | `←` / `→`, `Home` / `End`, `Ctrl+A` / `Ctrl+E` | Move the caret.                                                                                                           |
 | `Ctrl+U` / `Ctrl+K` / `Ctrl+W`                 | Kill the whole line, the rest of the line, or the previous word.                                                          |

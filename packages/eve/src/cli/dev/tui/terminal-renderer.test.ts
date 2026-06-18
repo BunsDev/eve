@@ -274,6 +274,26 @@ describe("TerminalRenderer (inline scrollback)", () => {
     renderer.shutdown();
   });
 
+  it("clears a non-empty prompt on Ctrl+C, and quits only when already empty", async () => {
+    const { input, renderer } = makeRenderer();
+
+    const prompt = renderer.readPrompt();
+    input.type("draft message");
+    input.ctrlC(); // first Ctrl+C clears the buffer instead of quitting
+    input.type("real message");
+    input.enter();
+
+    // The cleared draft is gone (otherwise this would be "draft messagereal message").
+    expect(await prompt).toBe("real message");
+
+    // A Ctrl+C on the now-empty prompt quits.
+    const second = renderer.readPrompt();
+    input.ctrlC();
+    await expect(second).rejects.toThrow();
+
+    renderer.shutdown();
+  });
+
   it("windows a line longer than the terminal around the caret", async () => {
     const { screen, input, renderer } = makeRenderer(20); // narrow terminal
 

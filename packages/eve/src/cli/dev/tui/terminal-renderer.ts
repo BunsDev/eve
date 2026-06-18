@@ -547,7 +547,13 @@ export class TerminalRenderer implements AgentTUIRenderer {
             this.#paint();
             break;
           case "ctrl-c":
-            interrupt();
+            // A first Ctrl+C clears a non-empty prompt; on an already-empty
+            // prompt it quits.
+            if (editor.text.length === 0) {
+              interrupt();
+            } else {
+              apply(EMPTY_LINE);
+            }
             break;
           default:
             break;
