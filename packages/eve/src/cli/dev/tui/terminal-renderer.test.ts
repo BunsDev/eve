@@ -274,6 +274,23 @@ describe("TerminalRenderer (inline scrollback)", () => {
     renderer.shutdown();
   });
 
+  it("draws the caret over the character under it without inserting a cell", async () => {
+    const { screen, input, renderer } = makeRenderer();
+
+    const prompt = renderer.readPrompt();
+    input.type("hello");
+    input.left();
+    input.left(); // caret between "hel" and "lo"
+
+    const snapshot = screen.snapshot();
+    expect(snapshot).toContain("hello"); // text stays contiguous, not split by a caret
+    expect(snapshot).not.toContain("▏"); // no inserted bar-caret cell
+
+    input.enter();
+    await prompt;
+    renderer.shutdown();
+  });
+
   it("moves the caret into the line above on ↑, then edits it", async () => {
     const { input, renderer } = makeRenderer();
 

@@ -2765,8 +2765,16 @@ function promptInputRows({
 
     let body: string;
     if (r === layout.caretRow) {
-      const caret = caretVisible ? c.cyan(theme.glyph.caret) : " ";
-      body = `${style(row.text.slice(0, layout.caretCol))}${caret}${style(row.text.slice(layout.caretCol))}`;
+      // Block caret: invert the character under the cursor rather than insert a
+      // glyph between halves. Inserting a cell shifts the trailing text right and
+      // makes the blink-off frame flash a space mid-line; overlaying the real
+      // character keeps the text put and just toggles its highlight. At
+      // end-of-line there is nothing to invert, so the caret rides a space.
+      const before = row.text.slice(0, layout.caretCol);
+      const under = row.text.slice(layout.caretCol, layout.caretCol + 1) || " ";
+      const after = row.text.slice(layout.caretCol + 1);
+      const caretCell = caretVisible ? c.inverse(under) : style(under);
+      body = `${style(before)}${caretCell}${style(after)}`;
     } else {
       body = style(row.text);
     }
