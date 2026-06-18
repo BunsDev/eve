@@ -274,6 +274,22 @@ describe("TerminalRenderer (inline scrollback)", () => {
     renderer.shutdown();
   });
 
+  it("windows a line longer than the terminal around the caret", async () => {
+    const { screen, input, renderer } = makeRenderer(20); // narrow terminal
+
+    const prompt = renderer.readPrompt();
+    input.type("abcdefghijklmnopqrstuvwxyz"); // 26 chars into ~18 columns of room
+
+    const snapshot = screen.snapshot();
+    expect(snapshot).toContain("xyz"); // the caret end stays visible
+    expect(snapshot).toContain("…"); // the truncated head is marked
+    expect(snapshot).not.toContain("abcde"); // the head scrolled off
+
+    input.enter();
+    expect(await prompt).toBe("abcdefghijklmnopqrstuvwxyz"); // full text still submits
+    renderer.shutdown();
+  });
+
   it("draws the caret over the character under it without inserting a cell", async () => {
     const { screen, input, renderer } = makeRenderer();
 

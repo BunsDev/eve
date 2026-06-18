@@ -76,6 +76,7 @@ import {
   deleteForward,
   layoutPromptInput,
   lineOf,
+  visibleLine,
   type LineState,
 } from "./line-editor.js";
 import { LiveRegion } from "./live-region.js";
@@ -2758,6 +2759,8 @@ function promptInputRows({
 
   const layout = layoutPromptInput({ text, cursor });
   const promptGlyph = c.cyan(theme.glyph.prompt);
+  // Columns left for row text after the two-column gutter (glyph + space).
+  const budget = Math.max(1, width - 2);
   const out: string[] = [];
   for (let r = 0; r < layout.rows.length; r += 1) {
     const row = layout.rows[r]!;
@@ -2765,21 +2768,29 @@ function promptInputRows({
 
     let body: string;
     if (r === layout.caretRow) {
-      // Block caret: invert the character under the cursor rather than insert a
-      // glyph between halves. Inserting a cell shifts the trailing text right and
-      // makes the blink-off frame flash a space mid-line; overlaying the real
-      // character keeps the text put and just toggles its highlight. At
-      // end-of-line there is nothing to invert, so the caret rides a space.
-      const before = row.text.slice(0, layout.caretCol);
-      const under = row.text.slice(layout.caretCol, layout.caretCol + 1) || " ";
-      const after = row.text.slice(layout.caretCol + 1);
+      // Window the caret's row around the cursor so a line longer than the
+      // terminal scrolls horizontally instead of clipping the caret and the
+      // text past the right edge off-screen. `before`/`after` split at the
+      // caret, with `…` marking either truncated end.
+      const { before, after } = visibleLine(
+        { text: row.text, cursor: layout.caretCol },
+        budget,
+        theme.glyph.ellipsis,
+      );
+      // Block caret: invert the character under the cursor (the head of `after`)
+      // rather than insert a glyph between the halves. Inserting a cell shifts
+      // the trailing text right and flashes a space mid-line on the blink-off
+      // frame; overlaying the real character keeps the text put and just toggles
+      // its highlight. At end-of-line there is nothing to invert, so it rides a
+      // space.
+      const under = after.slice(0, 1) || " ";
       const caretCell = caretVisible ? c.inverse(under) : style(under);
-      body = `${style(before)}${caretCell}${style(after)}`;
+      body = `${style(before)}${caretCell}${style(after.slice(1))}`;
+      // The argument hint trails the caret only on a single-line command draft.
+      if (ghost.length > 0 && layout.rows.length === 1) body += ghost;
     } else {
       body = style(row.text);
     }
-    // The argument hint trails the caret only on a single-line command draft.
-    if (ghost.length > 0 && layout.rows.length === 1 && r === layout.caretRow) body += ghost;
     out.push(clip(`${gutter} ${body}`, width));
   }
   out.push("");
