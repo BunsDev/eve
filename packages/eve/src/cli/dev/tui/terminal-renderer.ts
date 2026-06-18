@@ -220,9 +220,6 @@ const escFlushMs = 30;
 // How long the transient Ctrl+L log-mode hint stays in the status line after
 // the last cycle before it clears itself.
 const logLevelHintMs = 5_000;
-// Cap on the prompt input's visible height; a taller multi-line buffer scrolls
-// internally so it can't push the rest of the TUI off-screen.
-const PROMPT_MAX_ROWS = 10;
 
 const STATUS = {
   processing: "Working…",
@@ -572,8 +569,7 @@ export class TerminalRenderer implements AgentTUIRenderer {
    * Uses the same layout the renderer paints, so navigation tracks wrapping.
    */
   #caretToRow(state: LineState, direction: "up" | "down"): LineState | undefined {
-    const contentWidth = Math.max(1, this.#width() - 3);
-    const layout = layoutPromptInput(state, contentWidth);
+    const layout = layoutPromptInput(state);
     const targetRow = direction === "up" ? layout.caretRow - 1 : layout.caretRow + 1;
     if (targetRow < 0 || targetRow >= layout.rows.length) return undefined;
     const row = layout.rows[targetRow]!;
@@ -2744,10 +2740,8 @@ interface PromptInputRowsInput {
 /**
  * Renders the prompt buffer as terminal rows, followed by a blank row that keeps
  * the persistent status visually separate. The buffer can carry newlines (paste,
- * or Shift+Enter later), so it lays out across visual rows — growing downward
- * instead of collapsing onto one line — and caps the viewport at
- * {@link PROMPT_MAX_ROWS}, scrolling to keep the caret visible so a tall paste
- * can't push the rest of the TUI off-screen.
+ * or Shift+Enter later), so it renders one row per line — growing downward
+ * instead of collapsing onto one line — with the prompt glyph on the first row.
  */
 function promptInputRows({
   text,
@@ -2762,27 +2756,12 @@ function promptInputRows({
   const style = (segment: string): string =>
     isCommand && segment.length > 0 ? c.blue(segment) : segment;
 
-  // Reserve three columns: the gutter glyph, its trailing space, and room for
-  // the caret at the end of a row.
-  const layout = layoutPromptInput({ text, cursor }, Math.max(1, width - 3));
-  const total = layout.rows.length;
-  const visibleCount = Math.min(PROMPT_MAX_ROWS, total);
-  let top = 0;
-  if (layout.caretRow >= visibleCount) top = layout.caretRow - visibleCount + 1;
-  top = Math.min(top, total - visibleCount);
-
+  const layout = layoutPromptInput({ text, cursor });
   const promptGlyph = c.cyan(theme.glyph.prompt);
-  const ellipsis = c.dim(theme.glyph.ellipsis);
   const out: string[] = [];
-  for (let r = top; r < top + visibleCount; r += 1) {
+  for (let r = 0; r < layout.rows.length; r += 1) {
     const row = layout.rows[r]!;
-    // Gutter: the prompt glyph on the true first row, a scroll marker when rows
-    // are hidden above or below the viewport, otherwise blank for alignment
-    // under the prompt.
-    let gutter = " ";
-    if (r === top && top > 0) gutter = ellipsis;
-    else if (r === top + visibleCount - 1 && top + visibleCount < total) gutter = ellipsis;
-    else if (r === 0) gutter = promptGlyph;
+    const gutter = r === 0 ? promptGlyph : " ";
 
     let body: string;
     if (r === layout.caretRow) {
@@ -2792,7 +2771,7 @@ function promptInputRows({
       body = style(row.text);
     }
     // The argument hint trails the caret only on a single-line command draft.
-    if (ghost.length > 0 && total === 1 && r === layout.caretRow) body += ghost;
+    if (ghost.length > 0 && layout.rows.length === 1 && r === layout.caretRow) body += ghost;
     out.push(clip(`${gutter} ${body}`, width));
   }
   out.push("");

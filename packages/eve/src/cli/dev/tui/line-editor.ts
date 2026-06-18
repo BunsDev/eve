@@ -184,41 +184,26 @@ export interface PromptLayout {
 }
 
 /**
- * Lays a prompt buffer out into visual rows of at most `width` columns: embedded
- * newlines start a new row and longer logical lines wrap. Pure geometry — no
- * styling — so the renderer and up/down navigation share one source of truth for
- * the cursor ↔ row/column mapping.
+ * Lays a prompt buffer out into one visual row per logical line (split on
+ * newlines) and locates the caret in that grid. Pure geometry — no styling, no
+ * wrapping — so the renderer and up/down navigation share one source of truth
+ * for the cursor ↔ row/column mapping. The renderer clips each row to width.
  */
-export function layoutPromptInput(state: LineState, width: number): PromptLayout {
-  const cols = Math.max(1, width);
+export function layoutPromptInput(state: LineState): PromptLayout {
   const rows: PromptVisualRow[] = [];
   let caretRow = 0;
   let caretCol = 0;
 
-  const lines = state.text.split("\n");
-  let lineStart = 0;
-  for (const line of lines) {
-    // An empty logical line still occupies one row; a non-empty one wraps into
-    // ceil(length / cols) rows.
-    const chunkCount = Math.max(1, Math.ceil(line.length / cols));
-    for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex += 1) {
-      const consumed = chunkIndex * cols;
-      const chunk = line.slice(consumed, consumed + cols);
-      const chunkStart = lineStart + consumed;
-      const isLastChunk = chunkIndex === chunkCount - 1;
-      // The caret belongs to this chunk when it sits inside it; the chunk that
-      // ends a logical line also owns the caret at its trailing edge.
-      if (
-        state.cursor >= chunkStart &&
-        (state.cursor < chunkStart + chunk.length ||
-          (isLastChunk && state.cursor <= chunkStart + chunk.length))
-      ) {
-        caretRow = rows.length;
-        caretCol = state.cursor - chunkStart;
-      }
-      rows.push({ text: chunk, start: chunkStart });
+  let start = 0;
+  for (const text of state.text.split("\n")) {
+    // The caret sits on this line when it falls within [start, start + length];
+    // the next line begins one past the "\n", so the ranges never overlap.
+    if (state.cursor >= start && state.cursor <= start + text.length) {
+      caretRow = rows.length;
+      caretCol = state.cursor - start;
     }
-    lineStart += line.length + 1; // + 1 for the "\n" that split removed
+    rows.push({ text, start });
+    start += text.length + 1; // + 1 for the "\n" that split removed
   }
 
   return { rows, caretRow, caretCol };

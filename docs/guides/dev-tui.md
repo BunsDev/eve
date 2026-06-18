@@ -70,7 +70,7 @@ The prompt input behaves like a shell line editor.
 | `Ctrl+L`                                       | Cycle the log display mode (`none → all → stderr → sandbox → none`) and briefly show the mode in the status line.         |
 | `Ctrl+R`                                       | Redraw the screen.                                                                                                        |
 
-Pasting multi-line text inserts it intact: the prompt enables bracketed paste, so it renders across multiple rows rather than submitting at the first line. The input grows downward (and scrolls once tall) while you edit; `Enter` sends the whole thing.
+Pasting multi-line text inserts it intact: the prompt enables bracketed paste, so it renders one row per line rather than submitting at the first line. The input grows downward as you edit; `Enter` sends the whole thing.
 
 If a turn fails terminally (the server session dies or the connection drops), the TUI starts a fresh session and notes it inline so you can keep going. Server-side context resets with the old session.
 
